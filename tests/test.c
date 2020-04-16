@@ -211,6 +211,7 @@ _TEST_DECL(0103_transactions);
 _TEST_DECL(0104_fetch_from_follower_mock);
 _TEST_DECL(0105_transactions_mock);
 _TEST_DECL(0106_cgrp_sess_timeout);
+_TEST_DECL(0109_auto_create_topics);
 _TEST_DECL(0110_batch_size);
 
 /* Manual tests */
@@ -391,6 +392,7 @@ struct test tests[] = {
               TEST_BRKVER(2,4,0,0)),
         _TEST(0105_transactions_mock, TEST_F_LOCAL, TEST_BRKVER(0,11,0,0)),
         _TEST(0106_cgrp_sess_timeout, TEST_F_LOCAL, TEST_BRKVER(0,11,0,0)),
+        _TEST(0109_auto_create_topics, 0),
         _TEST(0110_batch_size, 0),
 
         /* Manual tests */
@@ -3829,6 +3831,50 @@ void test_print_partition_list (const rd_kafka_topic_partition_list_t
 			 partitions->elems[i].err ?
 			 rd_kafka_err2str(partitions->elems[i].err) : "");
         }
+}
+
+
+/**
+ * @brief Execute script from the Kafka distribution bin/ path.
+ */
+void test_kafka_cmd (const char *fmt, ...) {
+#ifdef _MSC_VER
+	TEST_FAIL("%s not supported on Windows, yet", __FUNCTION__);
+#else
+	char cmd[1024];
+	int r;
+	va_list ap;
+	test_timing_t t_cmd;
+	const char *kpath;
+
+	kpath = test_getenv("KAFKA_PATH", NULL);
+
+	if (!kpath)
+		TEST_FAIL("%s: KAFKA_PATH must be set",
+			  __FUNCTION__);
+
+	r = rd_snprintf(cmd, sizeof(cmd),
+			"%s/bin/", kpath);
+	TEST_ASSERT(r < (int)sizeof(cmd));
+
+	va_start(ap, fmt);
+	rd_vsnprintf(cmd+r, sizeof(cmd)-r, fmt, ap);
+	va_end(ap);
+
+	TEST_SAY("Executing: %s\n", cmd);
+	TIMING_START(&t_cmd, "exec");
+	r = system(cmd);
+	TIMING_STOP(&t_cmd);
+
+	if (r == -1)
+		TEST_FAIL("system(\"%s\") failed: %s", cmd, strerror(errno));
+	else if (WIFSIGNALED(r))
+		TEST_FAIL("system(\"%s\") terminated by signal %d\n", cmd,
+			  WTERMSIG(r));
+	else if (WEXITSTATUS(r))
+		TEST_FAIL("system(\"%s\") failed with exit status %d\n",
+			  cmd, WEXITSTATUS(r));
+#endif
 }
 
 /**

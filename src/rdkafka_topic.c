@@ -52,6 +52,7 @@ const char *rd_kafka_topic_state_names[] = {
 
 
 
+void rd_kafka_lwtopic_destroy (rd_kafka_lwtopic_t *lwrkt);
 static int
 rd_kafka_topic_metadata_update (rd_kafka_topic_t *rkt,
                                 const struct rd_kafka_metadata_topic *mdt,
@@ -79,6 +80,8 @@ static void rd_kafka_topic_keep_app (rd_kafka_topic_t *rkt) {
  */
 static void rd_kafka_topic_destroy_app (rd_kafka_topic_t *app_rkt) {
 	rd_kafka_topic_t *rkt = app_rkt;
+
+        rd_assert(!rd_kafka_rkt_is_lw(app_rkt));
 
         if (unlikely(rd_refcnt_sub(&rkt->rkt_app_refcnt) == 0))
                 rd_kafka_topic_destroy0(rkt); /* final app reference lost,
@@ -121,7 +124,10 @@ void rd_kafka_topic_destroy_final (rd_kafka_topic_t *rkt) {
  * Application destroy
  */
 void rd_kafka_topic_destroy (rd_kafka_topic_t *app_rkt) {
-	rd_kafka_topic_destroy_app(app_rkt);
+        if (unlikely(rd_kafka_rkt_is_lw(app_rkt)))
+                rd_kafka_lwtopic_destroy((rd_kafka_lwtopic_t *)app_rkt);
+        else
+                rd_kafka_topic_destroy_app(app_rkt);
 }
 
 
@@ -184,6 +190,36 @@ int rd_kafka_topic_cmp_rkt (const void *_a, const void *_b) {
                 return 0;
 
         return rd_kafkap_str_cmp(rkt_a->rkt_topic, rkt_b->rkt_topic);
+}
+
+
+/**
+ * @brief Destroy/free a light-weight topic object.
+ */
+void rd_kafka_lwtopic_destroy (rd_kafka_lwtopic_t *lrkt) {
+        rd_assert(rd_kafka_rkt_is_lw(lrktrkt)))
+        rd_free(lwrkt);
+}
+
+
+/**
+ * @brief Create a new light-weight topic name-only handle.
+ *
+ * This type of object is a light-weight non-linked alternative
+ * to the proper rd_kafka_itopic_t for outgoing APIs
+ * (such as rd_kafka_message_t) when there is no full topic object available.
+ */
+rd_kafka_lwtopic_t rd_kafka_lwtopic_new (const char *topic) {
+        rd_kafka_lwtopic_t *lrkt;
+        size_t topic_len = strlen(topic);
+
+        lrkt = rd_malloc(sizeof(*lrkt) + topic_len + 1);
+
+        memcpy(lrkt->lrkt_magic, "LRKT", 4);
+        lrkt->lrkt_topic = (char *)(lrkt+1);
+        memcpy(lrkt->lrkt_topic, topic, topic_len+1);
+
+        return lrkt;
 }
 
 
@@ -251,6 +287,8 @@ rd_kafka_topic_t *rd_kafka_topic_new0 (rd_kafka_t *rk,
                 *existing = 0;
 
 	rkt = rd_calloc(1, sizeof(*rkt));
+
+        memcpy(rkt->rkt_magic, "IRKT", 4);
 
 	rkt->rkt_topic     = rd_kafkap_str_new(topic, -1);
 	rkt->rkt_rk        = rk;
@@ -447,7 +485,10 @@ static void rd_kafka_topic_set_state (rd_kafka_topic_t *rkt, int state) {
  *   This is not true for Kafka Strings read from the network.
  */
 const char *rd_kafka_topic_name (const rd_kafka_topic_t *app_rkt) {
-	return app_rkt->rkt_topic->str;
+        if (rd_kafka_rkt_is_lw(app_rkt))
+                return rd_kafka_rkt_lw_const(app_rkt)->lrkt_topic;
+        else
+                return app_rkt->rkt_topic->str;
 }
 
 

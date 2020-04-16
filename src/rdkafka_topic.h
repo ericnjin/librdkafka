@@ -34,8 +34,47 @@
 extern const char *rd_kafka_topic_state_names[];
 
 
-/* rd_kafka_topic_t: internal representation of a topic */
+/**
+ * @struct Light-weight topic object which only contains the topic name.
+ *
+ * For use in outgoing APIs (like rd_kafka_message_t) when there is
+ * no proper topic object available.
+ *
+ * @remark lrkt_magic[4] MUST be the first field and be set to "LRKT".
+ */
+struct rd_kafka_lwtopic_s {
+        char  lrkt_magic[4];  /**< "LRKT" */
+        char *lrkt_topic;     /**< Points past this struct, allocated
+                               *   along with the struct. */
+};
+
+/**
+ * @returns true if the topic object is a light-weight topic, else false.
+ */
+static RD_UNUSED RD_INLINE
+rd_bool_t rd_kafka_rkt_is_lw (const rd_kafka_topic_t *app_rkt) {
+        const rd_kafka_lwtopic_t *lrkt = (const rd_kafka_lwtopic_t *)app_rkt;
+        return !memcmp(lrkt->lrkt_magic, "LRKT");
+}
+
+/** Casts a topic_t to a light-weight lwtopic_t */
+#define rd_kafka_rkt_lw(rkt)                    \
+        ((rd_kafka_lwtopic_t *)rkt)
+
+#define rd_kafka_rkt_lw_const(rkt)              \
+        ((const rd_kafka_lwtopic_t *)rkt)
+
+
+
+
+/*
+ * @struct Internal representation of a topic.
+ *
+ * @remark rkt_magic[4] MUST be the first field and be set to "IRKT".
+ */
 struct rd_kafka_topic_s {
+        char  rkt_magic[4];  /**< "IRKT" */
+
 	TAILQ_ENTRY(rd_kafka_topic_s) rkt_link;
 
 	rd_refcnt_t        rkt_refcnt;

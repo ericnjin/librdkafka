@@ -71,7 +71,7 @@ static RD_INLINE rd_kafka_resp_err_t rd_kafka_check_produce (rd_kafka_t *rk) {
 
 
 void rd_kafka_msg_destroy (rd_kafka_t *rk, rd_kafka_msg_t *rkm) {
-
+//FIXME
 	if (rkm->rkm_flags & RD_KAFKA_MSG_F_ACCOUNT) {
 		rd_dassert(rk || rkm->rkm_rkmessage.rkt);
 		rd_kafka_curr_msgs_sub(

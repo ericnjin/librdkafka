@@ -3503,6 +3503,8 @@ rd_kafka_propagate_consumer_topic_errors (
                 if (prev && prev->err == topic->err)
                         continue; /* This topic already reported same error */
 
+                rd_kafka_topic_partition_get_toppar(rkcg->rkcg_rk,
+                                                    topic),
                 /* Send consumer error to application */
                 rd_kafka_q_op_err(
                         rkcg->rkcg_q, RD_KAFKA_OP_CONSUMER_ERR,
