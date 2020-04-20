@@ -39,6 +39,7 @@
  * the idempotent guarantees can't be satisfied.
  */
 
+#define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
